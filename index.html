@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mi Día</title>
+<!-- Lo que hace que el iPhone la trate como una app -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Día">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EEF2F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1419" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: single mobile column, sticky date header, two tabs (Agenda / Tiempo), bottom add bar */
+:root{
+  --bg:#EEF2F4; --surface:#FFFFFF; --ink:#13212B; --muted:#5E6E79; --line:#D6DEE3;
+  --accent:#0D7A63; --accent-ink:#FFFFFF; --accent-soft:#D5EEE7; --danger:#B4412F;
+  --display:"Familjen Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --body:"Figtree",ui-sans-serif,system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D1419; --surface:#16212A; --ink:#E4ECF0; --muted:#8C9CA6; --line:#26343F;
+  --accent:#3CC6A1; --accent-ink:#06231B; --accent-soft:#163A31; --danger:#E7826F; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1419; --surface:#16212A; --ink:#E4ECF0; --muted:#8C9CA6; --line:#26343F;
+  --accent:#3CC6A1; --accent-ink:#06231B; --accent-soft:#163A31; --danger:#E7826F; color-scheme:dark}
+*{box-sizing:border-box}
+html{background:var(--bg);color-scheme:light;-webkit-text-size-adjust:100%;padding-top:env(safe-area-inset-top,0px)}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;padding-inline:16px;padding-block:0 120px;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:560px;margin:0 auto}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:16px 8px;display:grid;gap:12px}
+.toprow{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:700;font-size:1.75rem;margin:0;letter-spacing:-.01em;text-wrap:balance;text-transform:capitalize}
+.today-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;font-size:.85rem;font-weight:600}
+.week{display:grid;grid-template-columns:auto repeat(7,1fr) auto;gap:4px;align-items:stretch}
+.week .nav{border:0;background:none;color:var(--muted);font-size:1.2rem;padding:0 4px}
+.day{border:0;background:none;border-radius:12px;padding:6px 0;display:grid;justify-items:center;gap:2px}
+.day small{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.day b{font-family:var(--display);font-size:1.05rem;font-variant-numeric:tabular-nums}
+.day.sel{background:var(--ink);color:var(--bg)}
+.day.sel small{color:inherit;opacity:.75}
+.day.is-today:not(.sel) b{color:var(--accent)}
+.tabs{display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
+.tabs button{border:0;background:none;border-radius:9px;padding:8px;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
+main{display:grid;gap:20px;padding-top:12px}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin:0 0 8px}
+/* Agenda */
+.list{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.list li{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;padding:12px 14px;border-top:1px solid var(--line)}
+.list li:first-child{border-top:0}
+.time{font-family:var(--mono);font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.task{display:flex;align-items:center;gap:10px;min-width:0;border:0;background:none;text-align:left;padding:0}
+.check{flex:none;width:22px;height:22px;border-radius:7px;border:2px solid var(--line);display:grid;place-items:center}
+.done .check{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.done .task span{text-decoration:line-through;color:var(--muted)}
+.task span{overflow-wrap:anywhere}
+.del{border:0;background:none;color:var(--muted);font-size:1.1rem;padding:4px 6px;border-radius:6px}
+.del:hover{color:var(--danger)}
+.empty{padding:22px 16px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:14px}
+.progress{display:flex;justify-content:space-between;font-size:.85rem;color:var(--muted);margin-bottom:8px}
+.addbar{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
+.addbar form{max-width:560px;margin:0 auto;display:flex;gap:8px}
+.addbar input{min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;font:inherit;color:var(--ink)}
+#taskTitle{flex:1}
+#taskTime{width:96px;font-family:var(--mono);font-size:.9rem}
+.primary{border:0;background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:10px 14px;font-weight:600}
+/* Tiempo */
+.timer{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:10px;justify-items:start}
+.timer .clock{font-family:var(--mono);font-weight:700;font-size:clamp(2.4rem,12vw,3.4rem);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.timer .what{font-weight:600;display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.stop{border:0;background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 18px;font-weight:600}
+.timer.idle .clock{color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:500}
+.chip.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.chip.add{border-style:dashed;color:var(--muted)}
+.bars{display:grid;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.bar{display:grid;grid-template-columns:96px 1fr 64px;gap:10px;align-items:center;font-size:.9rem}
+.bar .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{height:10px;border-radius:5px;background:var(--bg);overflow:hidden}
+.fill{height:100%;border-radius:5px}
+.bar .val{font-family:var(--mono);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
+.total{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px;font-weight:600}
+.total span:last-child{font-family:var(--mono)}
+.sessions li{grid-template-columns:auto 1fr auto auto}
+.sessions .dur{font-family:var(--mono);font-size:.85rem;font-variant-numeric:tabular-nums}
+.newact{display:flex;gap:8px}
+.newact input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;font:inherit;color:var(--ink)}
+.note{font-size:.8rem;color:var(--muted)}
+/* Semana */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:2px;min-width:0}
+.stat b{font-family:var(--display);font-size:1.4rem;font-variant-numeric:tabular-nums}
+.stat small{color:var(--muted);font-size:.78rem}
+.daysgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
+.dcol{display:grid;justify-items:center;gap:4px;font-size:.72rem;color:var(--muted)}
+.dcol .col{width:100%;max-width:26px;height:64px;background:var(--bg);border-radius:6px;display:flex;align-items:flex-end;overflow:hidden}
+.dcol .col span{width:100%;background:var(--accent);border-radius:6px}
+.dcol em{font-style:normal;font-family:var(--mono);font-size:.7rem;color:var(--ink)}
+textarea{width:100%;min-height:72px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;font:inherit;color:var(--ink);resize:vertical}
+.report{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:14px}
+.report h3{font-family:var(--display);font-size:1.05rem;margin:0 0 6px}
+.report p{margin:0;max-width:65ch}
+.report ul{margin:0;padding-left:1.1rem;display:grid;gap:6px}
+.report .good li::marker{color:var(--accent)}
+.report .fix li::marker{color:var(--danger)}
+.goal{background:var(--accent-soft);border-radius:10px;padding:12px}
+.goal b{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px}
+.rowbtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.muted{color:var(--muted);font-size:.85rem}
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .4s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="toprow">
+      <h1 id="dateTitle">Hoy</h1>
+      <button class="today-btn" id="todayBtn" type="button">Hoy</button>
+    </div>
+    <div class="week" id="week"></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabAgenda" aria-selected="true" type="button">Agenda</button>
+      <button role="tab" id="tabTiempo" aria-selected="false" type="button">Tiempo</button>
+      <button role="tab" id="tabSemana" aria-selected="false" type="button">Semana</button>
+    </div>
+  </header>
+
+  <main id="viewAgenda">
+    <section>
+      <div class="progress"><span class="label" style="margin:0">Tareas</span><span id="progress"></span></div>
+      <div id="taskList"></div>
+    </section>
+  </main>
+
+  <main id="viewTiempo" hidden>
+    <section class="timer" id="timer"></section>
+    <section>
+      <p class="label">Empezar actividad</p>
+      <div class="chips" id="chips"></div>
+      <form class="newact" id="newActForm" hidden style="margin-top:10px">
+        <input id="newActName" placeholder="Nombre de la actividad" maxlength="30" autocomplete="off">
+        <button class="primary" type="submit">Añadir</button>
+      </form>
+    </section>
+    <section>
+      <p class="label">Reparto del día</p>
+      <div id="bars"></div>
+    </section>
+    <section>
+      <p class="label">Sesiones</p>
+      <div id="sessions"></div>
+    </section>
+    <p class="note" id="storeNote"></p>
+  </main>
+
+  <main id="viewSemana" hidden>
+    <section>
+      <p class="label" id="weekLabel">Esta semana</p>
+      <div class="stats" id="weekStats"></div>
+    </section>
+    <section>
+      <p class="label">Tareas hechas por día</p>
+      <div class="daysgrid" id="weekDays"></div>
+    </section>
+    <section>
+      <p class="label">Tiempo por actividad</p>
+      <div id="weekBars"></div>
+    </section>
+    <section>
+      <p class="label">Reporte de la semana</p>
+      <div style="display:grid;gap:10px">
+        <textarea id="weekNotes" placeholder="Opcional: cómo te has sentido, qué te ha costado, qué querías conseguir…" maxlength="1500"></textarea>
+        <div class="rowbtns">
+          <button class="primary" type="button" id="reportBtn">Copiar semana para Claude</button>
+          <span class="muted" id="reportStatus"></span>
+        </div>
+        <p class="muted" style="margin:0">Copia tus datos de la semana con las instrucciones del reporte. Luego abre la app de Claude, pégalo y te dirá qué ha ido bien y qué mejorar.</p>
+        <textarea id="reportText" readonly hidden></textarea>
+      </div>
+    </section>
+    <section>
+      <p class="label">Copia de seguridad</p>
+      <div style="display:grid;gap:10px">
+        <p class="muted" style="margin:0">Tus datos se guardan solo en este iPhone. Haz una copia de vez en cuando y guárdala en Archivos o iCloud.</p>
+        <div class="rowbtns">
+          <button class="today-btn" type="button" id="exportBtn">Exportar copia</button>
+          <label class="today-btn" for="importFile" style="cursor:pointer">Importar copia</label>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+          <span class="muted" id="backupStatus"></span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="addbar" id="addbar">
+  <form id="taskForm">
+    <input id="taskTitle" placeholder="Nueva tarea…" maxlength="120" autocomplete="off" aria-label="Nueva tarea">
+    <input id="taskTime" type="time" aria-label="Hora (opcional)">
+    <button class="primary" type="submit">Añadir</button>
+  </form>
+</div>
+
+<script>
+(() => {
+  const PALETTE = ["#0D7A63","#2F6FD0","#C2410C","#8B5CF6","#B8860B","#DB2777","#0891B2","#65A30D"];
+  const DEFAULT_ACTS = [
+    {id:"trading",name:"Trading",color:PALETTE[0]},
+    {id:"gym",name:"Gym",color:PALETTE[2]},
+    {id:"programar",name:"Programar",color:PALETTE[1]},
+    {id:"leer",name:"Leer",color:PALETTE[3]},
+    {id:"redes",name:"Redes",color:PALETTE[5]},
+  ];
+  const $ = id => document.getElementById(id);
+  const pad = n => String(n).padStart(2,"0");
+  const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const fromKey = k => { const [y,m,d]=k.split("-").map(Number); return new Date(y,m-1,d); };
+  const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+  const uid = () => Math.random().toString(36).slice(2,10);
+  const fmtDur = ms => { const m=Math.round(ms/60000); return m<60?`${m} min`:`${Math.floor(m/60)} h ${pad(m%60)}`; };
+  const fmtClock = ms => { const s=Math.floor(ms/1000); return `${pad(Math.floor(s/3600))}:${pad(Math.floor(s/60)%60)}:${pad(s%60)}`; };
+  const fmtHM = t => { const d=new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  let selKey = keyOf(new Date());
+  let tab = "agenda";
+  let day = {tasks:[],sessions:[]};
+  let settings = {acts:DEFAULT_ACTS, running:null};
+  let store = null, dayUnsub = null;
+
+  // ---------- Guardado: todo vive en el almacenamiento del iPhone (localStorage) ----------
+  // Cada día es una entrada "midia-day-AAAA-MM-DD"; los ajustes y el cronómetro en "midia-settings".
+  function localStore(){
+    const ls = (k,v) => { try { if(v===undefined) return JSON.parse(localStorage.getItem(k)||"null"); localStorage.setItem(k,JSON.stringify(v)); } catch(e){ return null; } };
+    const subs = {};
+    const notify = (k,v) => (subs[k]||[]).forEach(f=>f(v));
+    const watch = (k,cb) => { (subs[k]=subs[k]||[]).push(cb); cb(ls(k)); return () => { subs[k]=subs[k].filter(f=>f!==cb); }; };
+    return {
+      watchDay:(k,cb)=>watch("midia-day-"+k,cb),
+      watchSettings:cb=>watch("midia-settings",cb),
+      getDay:async k=>ls("midia-day-"+k),
+      setDay:async (k,v)=>{ ls("midia-day-"+k,v); notify("midia-day-"+k,v); },
+      setSettings:async v=>{ ls("midia-settings",v); notify("midia-settings",v); },
+      getNotes:k=>ls("midia-notes-"+k)||"",
+      setNotes:(k,v)=>ls("midia-notes-"+k,v),
+    };
+  }
+  const clone = o => JSON.parse(JSON.stringify(o));
+
+  function attach(s){
+    store = s;
+    $("storeNote").textContent = "Tus datos se guardan en este iPhone.";
+    store.watchSettings(v => { settings = v ? {acts:v.acts?.length?v.acts:DEFAULT_ACTS, running:v.running||null} : {acts:DEFAULT_ACTS,running:null}; render(); });
+    watchSelected();
+  }
+  function watchSelected(){
+    if(dayUnsub) dayUnsub();
+    day = {tasks:[],sessions:[]}; render();
+    dayUnsub = store.watchDay(selKey, v => { day = {tasks:v?.tasks||[], sessions:v?.sessions||[]}; render(); if(tab==="semana") loadWeek(); });
+  }
+  const saveDay = () => store.setDay(selKey, clone(day));
+  const saveSettings = () => store.setSettings(clone(settings));
+
+  // ---------- Rendering ----------
+  function renderHeader(){
+    const sel = fromKey(selKey), todayK = keyOf(new Date());
+    const label = selKey===todayK ? "Hoy" : sel.toLocaleDateString("es-ES",{weekday:"long"});
+    $("dateTitle").textContent = `${label}, ${sel.toLocaleDateString("es-ES",{day:"numeric",month:"short"})}`;
+    $("todayBtn").hidden = selKey===todayK;
+    const mon = addDays(sel, -((sel.getDay()+6)%7));
+    let h = `<button class="nav" data-shift="-7" type="button" aria-label="Semana anterior">‹</button>`;
+    for(let i=0;i<7;i++){
+      const d = addDays(mon,i), k = keyOf(d);
+      h += `<button type="button" class="day${k===selKey?" sel":""}${k===todayK?" is-today":""}" data-key="${k}">
+        <small>${d.toLocaleDateString("es-ES",{weekday:"short"}).slice(0,2)}</small><b>${d.getDate()}</b></button>`;
+    }
+    h += `<button class="nav" data-shift="7" type="button" aria-label="Semana siguiente">›</button>`;
+    $("week").innerHTML = h;
+    $("tabAgenda").setAttribute("aria-selected", tab==="agenda");
+    $("tabTiempo").setAttribute("aria-selected", tab==="tiempo");
+    $("tabSemana").setAttribute("aria-selected", tab==="semana");
+    $("viewAgenda").hidden = tab!=="agenda";
+    $("viewTiempo").hidden = tab!=="tiempo";
+    $("viewSemana").hidden = tab!=="semana";
+    $("addbar").hidden = tab!=="agenda";
+  }
+
+  function renderAgenda(){
+    const tasks = [...day.tasks].sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
+    const done = tasks.filter(t=>t.done).length;
+    $("progress").textContent = tasks.length ? `${done} de ${tasks.length} hechas` : "";
+    if(!tasks.length){
+      $("taskList").innerHTML = `<div class="empty">Nada apuntado para este día.<br>Escribe una tarea abajo y, si quieres, ponle hora.</div>`;
+      return;
+    }
+    $("taskList").innerHTML = `<ul class="list">${tasks.map(t=>`
+      <li class="${t.done?"done":""}">
+        <span class="time">${t.time||"—"}</span>
+        <button class="task" type="button" data-toggle="${t.id}"><span class="check">${t.done?"✓":""}</span><span>${esc(t.title)}</span></button>
+        <button class="del" type="button" data-del="${t.id}" aria-label="Borrar tarea">×</button>
+      </li>`).join("")}</ul>`;
+  }
+
+  const actById = id => settings.acts.find(a=>a.id===id) || {name:"Actividad",color:"#888"};
+
+  function renderTimer(){
+    const r = settings.running;
+    const el = $("timer");
+    if(!r){ el.className="timer idle"; el.innerHTML=`<div class="clock">00:00:00</div><div class="what" style="color:var(--muted)">Toca una actividad para empezar a contar</div>`; return; }
+    const a = actById(r.act);
+    el.className="timer";
+    el.innerHTML = `<div class="what"><span class="dot" style="background:${a.color}"></span>${esc(a.name)} · desde ${fmtHM(r.start)}</div>
+      <div class="clock" id="clock">${fmtClock(Date.now()-r.start)}</div>
+      <button class="stop" type="button" id="stopBtn">Parar</button>`;
+  }
+
+  function renderTiempo(){
+    renderTimer();
+    const r = settings.running;
+    $("chips").innerHTML = settings.acts.map(a=>`<button type="button" class="chip${r&&r.act===a.id?" on":""}" data-act="${a.id}"><span class="dot" style="background:${a.color}"></span>${esc(a.name)}</button>`).join("")
+      + `<button type="button" class="chip add" id="addActBtn">+ Nueva</button>`;
+
+    const totals = {};
+    day.sessions.forEach(s=>{ totals[s.act]=(totals[s.act]||0)+(s.end-s.start); });
+    if(r && keyOf(new Date(r.start))===selKey) totals[r.act]=(totals[r.act]||0)+(Date.now()-r.start);
+    const entries = Object.entries(totals).sort((a,b)=>b[1]-a[1]);
+    const sum = entries.reduce((n,[,v])=>n+v,0), max = entries[0]?.[1]||1;
+    $("bars").innerHTML = entries.length ? `<div class="bars">${entries.map(([id,v])=>{const a=actById(id);return `
+      <div class="bar"><span class="name">${esc(a.name)}</span><span class="track"><span class="fill" style="width:${Math.max(3,v/max*100)}%;background:${a.color}"></span></span><span class="val">${fmtDur(v)}</span></div>`}).join("")}
+      <div class="total"><span>Total</span><span>${fmtDur(sum)}</span></div></div>`
+      : `<div class="empty">Aún no has registrado tiempo este día.</div>`;
+
+    const ss = [...day.sessions].sort((a,b)=>b.start-a.start);
+    $("sessions").innerHTML = ss.length ? `<ul class="list sessions">${ss.map(s=>{const a=actById(s.act);return `
+      <li><span class="dot" style="background:${a.color}"></span><span>${esc(a.name)} <span class="time">${fmtHM(s.start)}–${fmtHM(s.end)}</span></span>
+      <span class="dur">${fmtDur(s.end-s.start)}</span><button class="del" type="button" data-delsess="${s.id}" aria-label="Borrar sesión">×</button></li>`}).join("")}</ul>`
+      : `<div class="empty">Las sesiones que pares aparecerán aquí.</div>`;
+  }
+
+  function render(){ renderHeader(); renderAgenda(); renderTiempo(); }
+
+  // ---------- Semana ----------
+  let week = null, weekLoading = null;
+  const mondayOf = k => { const d=fromKey(k); return keyOf(addDays(d, -((d.getDay()+6)%7))); };
+  const DAY_NAMES = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"];
+
+  async function loadWeek(){
+    const mon = mondayOf(selKey);
+    if(week?.mon===mon && !weekLoading) { renderSemana(); }
+    const keys = Array.from({length:7},(_,i)=>keyOf(addDays(fromKey(mon),i)));
+    const p = weekLoading = Promise.all(keys.map(k=>k===selKey?Promise.resolve(day):store.getDay(k)));
+    const res = await p; if(weekLoading!==p) return; weekLoading = null;
+    const changedWeek = week?.mon!==mon;
+    week = { mon, days: keys.map((k,i)=>({key:k, tasks:res[i]?.tasks||[], sessions:res[i]?.sessions||[]})) };
+    if(changedWeek){ $("weekNotes").value = store.getNotes(mon); $("reportText").hidden = true; $("reportStatus").textContent = ""; }
+    renderSemana();
+  }
+
+  function weekSummary(){
+    const totals = {}; let tasks=0, done=0, active=0;
+    const perDay = week.days.map((d,i)=>{
+      const dn = d.tasks.filter(t=>t.done).length; tasks+=d.tasks.length; done+=dn;
+      let mins = 0; d.sessions.forEach(s=>{ const v=s.end-s.start; mins+=v; totals[s.act]=(totals[s.act]||0)+v; });
+      if(d.tasks.length||d.sessions.length) active++;
+      return {name:DAY_NAMES[i], key:d.key, tasks:d.tasks.length, done:dn, ms:mins,
+        pending:d.tasks.filter(t=>!t.done).map(t=>t.title), sessions:d.sessions.map(s=>({act:actById(s.act).name, start:fmtHM(s.start), min:Math.round((s.end-s.start)/60000)}))};
+    });
+    return {tasks, done, active, totals, perDay};
+  }
+
+  function renderSemana(){
+    if(!week || week.mon!==mondayOf(selKey)){ $("weekStats").innerHTML=`<p class="muted">Cargando la semana…</p>`; return; }
+    const mon = fromKey(week.mon), sun = addDays(mon,6);
+    const f = d => d.toLocaleDateString("es-ES",{day:"numeric",month:"short"});
+    $("weekLabel").textContent = `Semana del ${f(mon)} al ${f(sun)}`;
+    const s = weekSummary();
+    const totalMs = Object.values(s.totals).reduce((a,b)=>a+b,0);
+    $("weekStats").innerHTML = `
+      <div class="stat"><b>${s.tasks?Math.round(s.done/s.tasks*100):0}%</b><small>${s.done} de ${s.tasks} tareas</small></div>
+      <div class="stat"><b>${fmtDur(totalMs)}</b><small>tiempo registrado</small></div>
+      <div class="stat"><b>${s.active}/7</b><small>días con registro</small></div>`;
+    const maxT = Math.max(1,...s.perDay.map(d=>d.tasks));
+    $("weekDays").innerHTML = s.perDay.map(d=>`
+      <div class="dcol" title="${d.done} de ${d.tasks} hechas"><em>${d.tasks?`${d.done}/${d.tasks}`:"–"}</em>
+      <div class="col"><span style="height:${d.tasks?Math.max(6,d.done/maxT*100):0}%"></span></div>${d.name.slice(0,2)}</div>`).join("");
+    const entries = Object.entries(s.totals).sort((a,b)=>b[1]-a[1]), max = entries[0]?.[1]||1;
+    $("weekBars").innerHTML = entries.length ? `<div class="bars">${entries.map(([id,v])=>{const a=actById(id);return `
+      <div class="bar"><span class="name">${esc(a.name)}</span><span class="track"><span class="fill" style="width:${Math.max(3,v/max*100)}%;background:${a.color}"></span></span><span class="val">${fmtDur(v)}</span></div>`}).join("")}</div>`
+      : `<div class="empty">Esta semana aún no hay tiempo registrado.</div>`;
+  }
+
+  function buildPrompt(){
+    const s = weekSummary(), notes = $("weekNotes").value.trim();
+    const data = {
+      semana:`${week.mon} (lunes) a ${week.days[6].key} (domingo)`,
+      tareas_totales:s.tasks, tareas_hechas:s.done, dias_con_registro:s.active,
+      minutos_por_actividad:Object.fromEntries(Object.entries(s.totals).map(([id,v])=>[actById(id).name,Math.round(v/60000)])),
+      dias:s.perDay.map(d=>({dia:d.name, tareas:d.tasks, hechas:d.done, pendientes:d.pending.slice(0,15), sesiones:d.sessions.slice(0,20)})),
+      notas_del_usuario:notes||null,
+    };
+    return `Hazme el reporte semanal de mi app Mi Día. Actúa como un coach de productividad directo y concreto: analiza mi semana (mi agenda y el tiempo que dedico a cada actividad) y dime:
+
+1. Un resumen de 2-3 frases.
+2. Lo que ha ido bien (2-4 puntos).
+3. Qué mejorar (3-5 puntos accionables).
+4. Un objetivo concreto y medible para la próxima semana.
+
+Basa cada punto en los datos: cita días, actividades o cifras. No inventes nada que no esté. Si hay pocos datos, dilo. Tutéame y usa frases cortas.
+
+Datos de la semana:
+${JSON.stringify(data,null,1)}`;
+  }
+
+  async function copyReport(){
+    if(!week) return;
+    const text = buildPrompt();
+    try{
+      await navigator.clipboard.writeText(text);
+      $("reportStatus").textContent = "Copiado. Ahora pégalo en Claude.";
+      $("reportText").hidden = true;
+    }catch(e){
+      // Si el portapapeles falla, mostramos el texto seleccionado para copiarlo a mano
+      const box = $("reportText"); box.value = text; box.hidden = false; box.focus(); box.select();
+      $("reportStatus").textContent = "Selecciona el texto y cópialo.";
+    }
+  }
+
+  // ---------- Copia de seguridad ----------
+  async function exportBackup(){
+    const all = {};
+    try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k.startsWith("midia-")) all[k]=localStorage.getItem(k); } }catch(e){}
+    const name = `mi-dia-copia-${keyOf(new Date())}.json`;
+    const blob = new Blob([JSON.stringify({app:"mi-dia", version:1, fecha:new Date().toISOString(), datos:all},null,1)],{type:"application/json"});
+    // En el iPhone abrimos el menú Compartir para poder "Guardar en Archivos"
+    const file = new File([blob], name, {type:"application/json"});
+    if(navigator.canShare?.({files:[file]})){
+      try{ await navigator.share({files:[file], title:"Copia de Mi Día"}); $("backupStatus").textContent = "Copia lista."; return; }
+      catch(e){ if(e.name==="AbortError") return; }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+    $("backupStatus").textContent = `Copia exportada (${Object.keys(all).length} registros).`;
+  }
+  async function importBackup(file){
+    try{
+      const j = JSON.parse(await file.text());
+      if(j?.app!=="mi-dia" || typeof j.datos!=="object") throw new Error("formato");
+      Object.entries(j.datos).forEach(([k,v])=>{ if(k.startsWith("midia-")) localStorage.setItem(k,v); });
+      $("backupStatus").textContent = "Copia importada. Recargando…";
+      setTimeout(()=>location.reload(), 600);
+    }catch(e){ $("backupStatus").textContent = "Ese archivo no es una copia de Mi Día."; }
+  }
+
+  // ---------- Actions ----------
+  async function stopRunning(){
+    const r = settings.running; if(!r) return;
+    const sess = {id:uid(), act:r.act, start:r.start, end:Date.now()};
+    settings.running = null; await saveSettings();
+    if(sess.end-sess.start < 30000){ render(); return; } // ignora toques accidentales
+    const k = keyOf(new Date(sess.start));
+    if(k===selKey){ day.sessions.push(sess); await saveDay(); }
+    else { const d = (await store.getDay(k)) || {tasks:[],sessions:[]}; d.sessions=[...(d.sessions||[]),sess]; d.tasks=d.tasks||[]; await store.setDay(k,d); }
+    render();
+  }
+  async function startAct(id){
+    if(settings.running?.act===id){ await stopRunning(); return; }
+    if(settings.running) await stopRunning();
+    settings.running = {act:id, start:Date.now()};
+    await saveSettings(); render();
+  }
+
+  document.addEventListener("click", async e => {
+    const t = e.target.closest("button"); if(!t || !store) return;
+    if(t.dataset.key){ selKey=t.dataset.key; watchSelected(); }
+    else if(t.dataset.shift){ selKey=keyOf(addDays(fromKey(selKey),+t.dataset.shift)); watchSelected(); }
+    else if(t.id==="todayBtn"){ selKey=keyOf(new Date()); watchSelected(); }
+    else if(t.id==="tabAgenda"){ tab="agenda"; render(); }
+    else if(t.id==="tabTiempo"){ tab="tiempo"; render(); }
+    else if(t.id==="tabSemana"){ tab="semana"; render(); renderSemana(); loadWeek(); }
+    else if(t.id==="reportBtn"){ await copyReport(); }
+    else if(t.id==="exportBtn"){ await exportBackup(); }
+    else if(t.dataset.toggle){ const x=day.tasks.find(k=>k.id===t.dataset.toggle); if(x){x.done=!x.done; render(); await saveDay();} }
+    else if(t.dataset.del){ day.tasks=day.tasks.filter(k=>k.id!==t.dataset.del); render(); await saveDay(); }
+    else if(t.dataset.delsess){ day.sessions=day.sessions.filter(k=>k.id!==t.dataset.delsess); render(); await saveDay(); }
+    else if(t.dataset.act){ await startAct(t.dataset.act); }
+    else if(t.id==="stopBtn"){ await stopRunning(); }
+    else if(t.id==="addActBtn"){ $("newActForm").hidden=false; $("newActName").focus(); }
+  });
+
+  $("taskForm").addEventListener("submit", async e => {
+    e.preventDefault(); if(!store) return;
+    const title = $("taskTitle").value.trim(); if(!title) return;
+    day.tasks.push({id:uid(), title, time:$("taskTime").value||"", done:false});
+    $("taskTitle").value=""; $("taskTime").value="";
+    render(); await saveDay();
+  });
+  $("newActForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = $("newActName").value.trim(); if(!name) return;
+    settings.acts = [...settings.acts, {id:uid(), name, color:PALETTE[settings.acts.length%PALETTE.length]}];
+    $("newActName").value=""; $("newActForm").hidden=true;
+    render(); await saveSettings();
+  });
+
+  setInterval(() => {
+    const c = $("clock"); if(c && settings.running) c.textContent = fmtClock(Date.now()-settings.running.start);
+    if(tab==="tiempo" && settings.running && Date.now()%60000<1000) renderTiempo();
+  }, 1000);
+
+  $("weekNotes").addEventListener("input", () => { if(week) store.setNotes(week.mon, $("weekNotes").value); });
+  $("importFile").addEventListener("change", e => { const f=e.target.files?.[0]; if(f) importBackup(f); e.target.value=""; });
+
+  // Al volver a la app (p. ej. al día siguiente) refrescamos para que "Hoy" sea hoy
+  document.addEventListener("visibilitychange", () => { if(!document.hidden && store){ render(); if(tab==="semana") loadWeek(); } });
+
+  // ---------- Arranque ----------
+  attach(localStore());
+
+  // Service worker: hace que la app abra sin internet
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW:", err)));
+  }
+})();
+</script>
+</body>
+</html>
